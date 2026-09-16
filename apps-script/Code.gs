@@ -1,22 +1,34 @@
 /**
  * Studio JR — Motor de turnos (Google Apps Script)
  * ------------------------------------------------------------
- * Este script vive DENTRO del Google Sheet "FormularioWeb" (Extensiones > Apps Script).
+ * Este script puede vivir DENTRO del Google Sheet "FormularioWeb" (Extensiones >
+ * Apps Script, "atado" a la hoja) o como proyecto independiente en script.google.com
+ * (standalone) — funciona igual en los dos casos gracias a abrirSheet_() más abajo,
+ * que usa CONFIG.SPREADSHEET_ID como respaldo si no hay una hoja "activa".
+ *
  * Expone una Web App que el sitio consulta para:
  *   - listar fechas/horarios disponibles (GET)
  *   - crear una reserva (POST)
  * y mantiene sincronizadas las hojas "Turnos" y "Reservas" en ambos sentidos,
  * incluso cuando alguien reserva a mano directamente en el Sheet.
  *
- * NO hace falta tocar nada de este archivo para empezar: correr
- * "🔧 Configurar hojas" y luego "📅 Generar turnos" desde el menú "Turnos"
- * que aparece arriba del Sheet.
+ * Si el script está ATADO a la hoja: recargá el Sheet y usá el menú "Turnos"
+ * (🔧 Configurar hojas, luego 📅 Generar turnos).
+ * Si el script es STANDALONE (no aparece menú "Turnos" en la hoja): elegí la
+ * función en el desplegable de arriba del editor (junto a "Depurar") y clickeá
+ * ▶ Ejecutar — primero "configurarHojas", después "generarTurnos". Para que la
+ * sincronización de reservas a mano funcione automáticamente, agregá un activador
+ * instalable: ícono de reloj (Activadores) > + Agregar activador > función "onEdit"
+ * > evento "Al editar" > Guardar.
  */
 
 // ============================================================
 // CONFIGURACIÓN — lo único que probablemente quieras editar
 // ============================================================
 const CONFIG = {
+  // Se usa solo si el script corre standalone (sin hoja "activa"). Si está atado
+  // a la hoja, se ignora y usa esa misma hoja igual.
+  SPREADSHEET_ID: '1pXsRxkgMScbjqiQWpOH2Xd7CsFzjUGgsEk7vb4eZnLM',
   SHEET_TURNOS: 'Turnos',
   SHEET_RESERVAS: 'Reservas',
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
@@ -44,8 +56,31 @@ const CONFIG = {
 
   // Si querés recibir un mail cada vez que entra una reserva desde la web,
   // poné tu dirección acá. Dejalo en '' para desactivar el aviso.
-  EMAIL_AVISO: '',
+  EMAIL_AVISO: 'ghiglioneagustin1247@gmail.com',
 };
+
+/**
+ * Devuelve la hoja de cálculo sobre la que trabajar, sea que el script esté
+ * atado a ella (getActiveSpreadsheet funciona) o corra standalone (hace falta
+ * abrirla por ID).
+ */
+function abrirSheet_() {
+  const activa = SpreadsheetApp.getActiveSpreadsheet();
+  if (activa) return activa;
+  return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+}
+
+/**
+ * Muestra un aviso al usuario si hay una UI disponible (script atado a la hoja);
+ * si no (standalone, o corrido con ▶ Ejecutar), lo manda al log en vez de romper.
+ */
+function avisar_(mensaje) {
+  try {
+    SpreadsheetApp.getUi().alert(mensaje);
+  } catch (err) {
+    Logger.log(mensaje);
+  }
+}
 
 // Columnas de la hoja Turnos
 const COL_T = { ID: 1, FECHA: 2, DIA: 3, HORA_INICIO: 4, HORA_FIN: 5, ESTADO: 6, ID_RESERVA: 7 };
@@ -62,14 +97,22 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 // MENÚ
 // ============================================================
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('Turnos')
-    .addItem('🔧 Configurar hojas (una sola vez)', 'configurarHojas')
-    .addItem('📅 Generar turnos (próximas ' + CONFIG.SEMANAS_A_GENERAR + ' semanas)', 'generarTurnos')
-    .addItem('♻️ Reiniciar turnos (borra los que no tienen reserva)', 'reiniciarTurnos')
-    .addSeparator()
-    .addItem('🔗 Ver URL del Web App', 'mostrarUrlWebApp')
-    .addToUi();
+  // Si el script es standalone (no atado a la hoja) o se corre manualmente con
+  // ▶ Ejecutar desde el editor, no hay UI de hoja disponible: no rompemos, solo
+  // no agregamos el menú (en ese caso, correr las funciones desde el desplegable
+  // del editor en vez de un menú en el Sheet).
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu('Turnos')
+      .addItem('🔧 Configurar hojas (una sola vez)', 'configurarHojas')
+      .addItem('📅 Generar turnos (próximas ' + CONFIG.SEMANAS_A_GENERAR + ' semanas)', 'generarTurnos')
+      .addItem('♻️ Reiniciar turnos (borra los que no tienen reserva)', 'reiniciarTurnos')
+      .addSeparator()
+      .addItem('🔗 Ver URL del Web App', 'mostrarUrlWebApp')
+      .addToUi();
+  } catch (err) {
+    // standalone o ejecución manual: sin menú, no es un error real.
+  }
 }
 
 /**
@@ -77,7 +120,7 @@ function onOpen() {
  * formato y validación de datos. Se puede correr varias veces sin romper nada.
  */
 function configurarHojas() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = abrirSheet_();
 
   const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS) || ss.insertSheet(CONFIG.SHEET_TURNOS);
   const headersT = ['ID', 'Fecha', 'Día', 'Hora inicio', 'Hora fin', 'Estado', 'ID Reserva'];
@@ -96,7 +139,7 @@ function configurarHojas() {
   aplicarValidacion_(reservas.getRange(2, COL_R.ORIGEN, 2000, 1), ['Web', 'Manual']);
   aplicarValidacion_(reservas.getRange(2, COL_R.ESTADO, 2000, 1), ['Confirmada', 'Cancelada']);
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Hojas "Turnos" y "Reservas" listas. Ahora corré "Generar turnos".', 'Configuración completa', 6);
+  abrirSheet_().toast('Hojas "Turnos" y "Reservas" listas. Ahora corré "Generar turnos".', 'Configuración completa', 6);
 }
 
 function aplicarValidacion_(range, opciones) {
@@ -109,10 +152,10 @@ function aplicarValidacion_(range, opciones) {
  * sin duplicar los que ya existen (por fecha + hora).
  */
 function generarTurnos() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = abrirSheet_();
   const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS);
   if (!turnos) {
-    SpreadsheetApp.getUi().alert('Primero corré "Configurar hojas".');
+    avisar_('Primero corré "configurarHojas".');
     return;
   }
 
@@ -154,7 +197,7 @@ function generarTurnos() {
     turnos.getRange(turnos.getLastRow() + 1, 1, filasNuevas.length, 7).setValues(filasNuevas);
   }
 
-  SpreadsheetApp.getActiveSpreadsheet().toast(filasNuevas.length + ' turnos nuevos generados.', 'Listo', 5);
+  abrirSheet_().toast(filasNuevas.length + ' turnos nuevos generados.', 'Listo', 5);
 }
 
 /**
@@ -163,7 +206,7 @@ function generarTurnos() {
  * se dejan intactos para no perder reservas confirmadas.
  */
 function reiniciarTurnos() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = abrirSheet_();
   const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS);
   if (!turnos) return;
 
@@ -180,7 +223,7 @@ function reiniciarTurnos() {
     turnos.getRange(2, 1, filasAConservar.length, 7).setValues(filasAConservar);
   }
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Turnos sin reserva eliminados. Corré "Generar turnos" para recrearlos con el horario actual.', 'Listo', 6);
+  abrirSheet_().toast('Turnos sin reserva eliminados. Corré "Generar turnos" para recrearlos con el horario actual.', 'Listo', 6);
 }
 
 function generarSlots_(horaInicio, horaFin, duracionMin) {
@@ -222,7 +265,7 @@ function mostrarUrlWebApp() {
   const mensaje = url
     ? 'URL del Web App:\n\n' + url
     : 'Todavía no publicaste este script como Web App.\nImplementar > Nueva implementación > Aplicación web.';
-  SpreadsheetApp.getUi().alert(mensaje);
+  avisar_(mensaje);
 }
 
 // ============================================================
@@ -273,7 +316,7 @@ function doPost(e) {
       }
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = abrirSheet_();
     const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS);
     const filaTurno = buscarFilaPorId_(turnos, datos.idTurno, COL_T.ID);
 
@@ -340,7 +383,7 @@ function enviarAvisoOpcional_(datos, fecha, hora) {
 }
 
 function obtenerFechasDisponibles_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = abrirSheet_();
   const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS);
   const ultimaFila = turnos.getLastRow();
   if (ultimaFila < 2) return [];
@@ -363,7 +406,7 @@ function obtenerFechasDisponibles_() {
 }
 
 function obtenerTurnosDisponibles_(fechaTexto) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = abrirSheet_();
   const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS);
   const ultimaFila = turnos.getLastRow();
   if (ultimaFila < 2) return [];
@@ -465,7 +508,7 @@ function sincronizarDesdeTurnos_(turnos, fila, columnaEditada) {
 
   if (estado === 'Disponible' && idReserva) {
     // Se liberó el turno a mano: cancelamos la reserva vinculada.
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = abrirSheet_();
     const reservas = ss.getSheetByName(CONFIG.SHEET_RESERVAS);
     const filaReserva = buscarFilaPorId_(reservas, idReserva, COL_R.ID);
     if (filaReserva) {
@@ -476,7 +519,7 @@ function sincronizarDesdeTurnos_(turnos, fila, columnaEditada) {
 }
 
 function liberarTurno_(idTurno) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = abrirSheet_();
   const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS);
   const filaTurno = buscarFilaPorId_(turnos, idTurno, COL_T.ID);
   if (filaTurno) {
@@ -486,7 +529,7 @@ function liberarTurno_(idTurno) {
 }
 
 function ocuparTurno_(idTurno, idReserva) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = abrirSheet_();
   const turnos = ss.getSheetByName(CONFIG.SHEET_TURNOS);
   const filaTurno = buscarFilaPorId_(turnos, idTurno, COL_T.ID);
   if (filaTurno) {
