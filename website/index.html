@@ -255,7 +255,7 @@
     .submit-btn:active{ transform: scale(.98); }
   }
 
-  /* escritorio: foto y ubicación (con mapa) lado a lado arriba, el resto abajo en una columna */
+  /* escritorio: columna izquierda (foto + descripción) y columna derecha (ubicación con mapa) arriba, el resto abajo en una columna */
   @media (min-width: 860px){
     .wrap{
       max-width: 920px;
@@ -263,12 +263,12 @@
       grid-template-columns: 1fr 1fr;
       column-gap: 32px;
       grid-template-areas:
-        "header header"
-        "photo  ubicacion"
-        "hero   hero"
-        "servicio servicio"
-        "reserva  reserva"
-        "footer   footer";
+        "header    header"
+        "photo     ubicacion"
+        "hero      ubicacion"
+        "servicio  servicio"
+        "reserva   reserva"
+        "footer    footer";
       align-items:start;
     }
     header{ grid-area: header; }
