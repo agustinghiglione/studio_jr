@@ -7,12 +7,15 @@ Sitio de reservas para **Studio JR** (Damian Jara, Zárate, Buenos Aires), conec
 ```
 jara/
 ├── website/
-│   └── index.html        # el sitio (single-file: HTML + CSS + JS)
+│   ├── index.html         # el sitio (single-file: HTML + CSS + JS)
+│   └── img/                # imágenes que usa el sitio (rutas relativas desde index.html)
 ├── apps-script/
-│   └── Code.gs            # motor de turnos, vive dentro del Google Sheet
+│   └── Code.gs             # motor de turnos, vive dentro del Google Sheet
 └── docs/
     └── GUIA-DEPLOY.md      # paso a paso para publicar / actualizar
 ```
+
+Las imágenes van en `website/img/` (no en una carpeta `public/` aparte): es lo único que Render publica, así que cualquier imagen fuera de `website/` no se ve en el sitio.
 
 ## Cómo funciona
 

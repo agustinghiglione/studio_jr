@@ -92,6 +92,11 @@
 
   /* hero */
   .hero{ margin-bottom:26px; }
+  .hero-photo{
+    border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow);
+    aspect-ratio: 16 / 10; background:var(--surface-2);
+  }
+  .hero-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
   .stars{ color:var(--brass); letter-spacing:.05em; }
   .rating-row{ display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--ink-soft); margin:6px 0 16px; }
   h1{ font-size: clamp(2.1rem, 7vw, 2.9rem); line-height:.98; }
@@ -125,15 +130,39 @@
   }
   .booking{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:var(--shadow); }
   .step-label{ font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin-bottom:10px; }
-  .dates-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:18px; scrollbar-width:thin; }
+
+  .dates-month{ font-size:.78rem; font-weight:600; color:var(--ink-soft); margin-bottom:8px; }
+  .dates-scroll{ position:relative; margin-bottom:18px; }
+  .dates-scroll::after{
+    content:''; position:absolute; top:0; right:0; bottom:10px; width:32px;
+    background:linear-gradient(to right, transparent, var(--surface));
+    pointer-events:none;
+  }
+  .dates-row{
+    display:flex; gap:8px; overflow-x:auto; padding-bottom:10px;
+    max-width:min(464px, 100%);
+    scroll-snap-type:x proximity;
+    scrollbar-width:thin; scrollbar-color: var(--ink) var(--surface);
+  }
+  .dates-row::-webkit-scrollbar{ height:6px; }
+  .dates-row::-webkit-scrollbar-track{ background:var(--surface); border-radius:999px; }
+  .dates-row::-webkit-scrollbar-thumb{ background:var(--ink); border-radius:999px; }
+  .dates-row::-webkit-scrollbar-button{ display:none; width:0; height:0; }
   .date-chip{
     flex:none; min-width:64px; border:1px solid var(--line); background:var(--paper); color:var(--ink);
     border-radius:12px; padding:10px 6px; text-align:center; cursor:pointer; line-height:1.2;
+    scroll-snap-align:start;
   }
   .date-chip .d{ font-size:.68rem; text-transform:uppercase; color:var(--ink-soft); }
   .date-chip .n{ font-size:1.05rem; font-weight:600; font-family:'IBM Plex Mono',monospace; }
   .date-chip[aria-pressed="true"]{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
   .date-chip[aria-pressed="true"] .d{ color:var(--paper); opacity:.75; }
+  .month-divider{
+    flex:none; width:26px; display:flex; align-items:center; justify-content:center;
+    writing-mode:vertical-rl; text-orientation:mixed;
+    font-size:.66rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--ink-soft); scroll-snap-align:start;
+  }
 
   .time-group{ margin-bottom:14px; }
   .time-group h4{ font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); font-weight:500; margin-bottom:8px; }
@@ -187,6 +216,11 @@
   /* location */
   .loc-grid{ display:grid; gap:14px; }
   .loc-card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .map-embed{
+    border-radius:12px; overflow:hidden; margin-bottom:14px; border:1px solid var(--line);
+    aspect-ratio:16/9; background:var(--surface-2);
+  }
+  .map-embed iframe{ width:100%; height:100%; border:0; display:block; }
   .loc-row{ display:flex; gap:12px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--line); }
   .loc-row:first-child{ border-top:none; padding-top:0; }
   .loc-row .ico{ flex:none; width:20px; text-align:center; color:var(--red-ink); }
@@ -230,6 +264,9 @@
   </header>
 
   <div class="hero">
+    <div class="hero-photo">
+      <img src="img/foto-trabajo.jpg" alt="Corte realizado en Studio JR" loading="lazy">
+    </div>
     <h1>Corte con oficio,<br>a tu hora.</h1>
     <div class="rating-row">
       <span class="stars" aria-hidden="true">★★★★★</span>
@@ -268,7 +305,10 @@
     <div class="booking">
       <div id="bookingLive">
         <div class="step-label">1. Elegí el día</div>
-        <div class="dates-row" id="datesRow" role="listbox" aria-label="Elegir fecha"></div>
+        <div class="dates-month" id="datesMonth"></div>
+        <div class="dates-scroll">
+          <div class="dates-row" id="datesRow" role="listbox" aria-label="Elegir fecha"></div>
+        </div>
 
         <div id="timesWrap" hidden>
           <div class="step-label">2. Elegí el horario</div>
@@ -324,6 +364,11 @@
     <h2 id="ubicacion-title" class="section-title">Dónde encontrarnos</h2>
     <div class="loc-grid">
       <div class="loc-card">
+        <div class="map-embed">
+          <iframe
+            src="https://www.google.com/maps?q=S%C3%A1enz+Pe%C3%B1a+1896,+Z%C3%A1rate,+Buenos+Aires&output=embed"
+            title="Ubicación de Studio JR en el mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
         <div class="loc-row">
           <span class="ico">📍</span>
           <div>Sáenz Peña 1896<br>Zárate, Buenos Aires</div>
@@ -401,6 +446,7 @@
 
   // ---------- Reserva ----------
   var datesRow = document.getElementById('datesRow');
+  var datesMonth = document.getElementById('datesMonth');
   var timesWrap = document.getElementById('timesWrap');
   var timesArea = document.getElementById('timesArea');
   var bookingForm = document.getElementById('bookingForm');
@@ -422,6 +468,16 @@
   function fmtFechaLarga(fechaISO){
     var d = new Date(fechaISO + 'T00:00:00');
     var s = d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function fmtMesAbrev(fechaISO){
+    var d = new Date(fechaISO + 'T00:00:00');
+    var s = d.toLocaleDateString('es-AR', { month: 'short' }).replace('.', '');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+  function fmtMesAno(fechaISO){
+    var d = new Date(fechaISO + 'T00:00:00');
+    var s = d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
@@ -466,25 +522,39 @@
 
   function renderFechas(fechas){
     datesRow.innerHTML = '';
+    var mesAnterior = null;
     fechas.forEach(function(f){
+      var mesActual = f.fecha.slice(0, 7); // "yyyy-MM"
+      if (mesAnterior !== null && mesActual !== mesAnterior){
+        var divisor = document.createElement('div');
+        divisor.className = 'month-divider';
+        divisor.setAttribute('aria-hidden', 'true');
+        divisor.textContent = fmtMesAbrev(f.fecha);
+        datesRow.appendChild(divisor);
+      }
+      mesAnterior = mesActual;
+
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'date-chip';
       btn.setAttribute('role','option');
       btn.setAttribute('aria-pressed','false');
+      btn.dataset.fecha = f.fecha;
       var fc = fmtFechaCorta(f.fecha);
       btn.innerHTML = '<div class="d">'+fc.dia+'</div><div class="n">'+fc.num+'</div>';
       btn.addEventListener('click', function(){ elegirFecha(f); });
       datesRow.appendChild(btn);
     });
+    if (fechas.length){ datesMonth.textContent = fmtMesAno(fechas[0].fecha); }
   }
 
   function elegirFecha(f){
     estado.fechaElegida = f;
     estado.turnoElegido = null;
-    Array.prototype.forEach.call(datesRow.children, function(ch){ ch.setAttribute('aria-pressed', 'false'); });
-    var idx = estado.fechas.indexOf(f);
-    if (idx >= 0) datesRow.children[idx].setAttribute('aria-pressed', 'true');
+    Array.prototype.forEach.call(datesRow.querySelectorAll('.date-chip'), function(ch){
+      ch.setAttribute('aria-pressed', ch.dataset.fecha === f.fecha ? 'true' : 'false');
+    });
+    datesMonth.textContent = fmtMesAno(f.fecha);
     bookingForm.hidden = true;
     confirmBox.hidden = true;
     timesWrap.hidden = false;
@@ -492,7 +562,9 @@
 
     var p = estado.demo
       ? Promise.resolve(turnosDemoPara(f.fecha, f._rangos))
-      : fetch(WEBAPP_URL + '?accion=turnos&fecha=' + encodeURIComponent(f.fecha)).then(function(r){ return r.json(); }).then(function(d){ return d.turnos || []; });
+      : fetch(WEBAPP_URL + '?accion=turnos&fecha=' + encodeURIComponent(f.fecha))
+          .then(function(r){ return r.json(); })
+          .then(function(d){ if (!d.ok) throw new Error(d.error || 'error'); return d.turnos || []; });
 
     p.then(renderTurnos).catch(function(){ mostrarFallback(); });
   }
