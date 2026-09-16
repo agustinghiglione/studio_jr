@@ -141,6 +141,8 @@ function configurarHojas() {
   turnos.setFrozenRows(1);
   turnos.autoResizeColumns(1, headersT.length);
   turnos.getRange(2, COL_T.FECHA, 3000, 1).setNumberFormat('@'); // texto plano: evita líos de huso horario
+  turnos.getRange(2, COL_T.HORA_INICIO, 3000, 1).setNumberFormat('@'); // texto plano: Sheets si no, "adivina" que es una hora y lo convierte
+  turnos.getRange(2, COL_T.HORA_FIN, 3000, 1).setNumberFormat('@');
   aplicarValidacion_(turnos.getRange(2, COL_T.ESTADO, 2000, 1), ['Disponible', 'Reservado', 'Bloqueado']);
 
   const reservas = ss.getSheetByName(CONFIG.SHEET_RESERVAS) || ss.insertSheet(CONFIG.SHEET_RESERVAS);
@@ -149,6 +151,7 @@ function configurarHojas() {
   reservas.setFrozenRows(1);
   reservas.autoResizeColumns(1, headersR.length);
   reservas.getRange(2, COL_R.FECHA, 3000, 1).setNumberFormat('@'); // texto plano: evita líos de huso horario
+  reservas.getRange(2, COL_R.HORA, 3000, 1).setNumberFormat('@');
   aplicarValidacion_(reservas.getRange(2, COL_R.ORIGEN, 2000, 1), ['Web', 'Manual']);
   aplicarValidacion_(reservas.getRange(2, COL_R.ESTADO, 2000, 1), ['Confirmada', 'Cancelada']);
 
@@ -178,7 +181,7 @@ function generarTurnos() {
     const datos = turnos.getRange(2, 1, ultimaFila - 1, COL_T.ID_RESERVA).getValues();
     datos.forEach(function (fila) {
       const fecha = formatearFecha_(fila[COL_T.FECHA - 1]);
-      const hora = fila[COL_T.HORA_INICIO - 1];
+      const hora = formatearHora_(fila[COL_T.HORA_INICIO - 1]);
       existentes.add(fecha + '|' + hora);
     });
   }
@@ -273,6 +276,23 @@ function formatearFecha_(valor) {
   return Utilities.formatDate(valor, CONFIG.ZONA_HORARIA, 'yyyy-MM-dd');
 }
 
+/**
+ * Igual que formatearFecha_ pero para horas: "09:00" puede quedar guardado como
+ * texto plano o, si Sheets lo "adivinó" como hora (pasa si la columna no tiene
+ * forzado el formato de texto), como un valor de hora/Date interno. Esta función
+ * normaliza cualquiera de los dos casos a un string "HH:mm" prolijo.
+ */
+function formatearHora_(valor) {
+  if (typeof valor === 'string') {
+    const m = valor.match(/^(\d{1,2}):(\d{2})/);
+    if (m) return pad2_(Number(m[1])) + ':' + m[2];
+  }
+  if (valor instanceof Date) {
+    return Utilities.formatDate(valor, CONFIG.ZONA_HORARIA, 'HH:mm');
+  }
+  return String(valor);
+}
+
 function mostrarUrlWebApp() {
   const url = ScriptApp.getService().getUrl();
   const mensaje = url
@@ -365,7 +385,7 @@ function doPost(e) {
 
     const fecha = turnos.getRange(filaTurno, COL_T.FECHA).getValue();
     const fechaTexto = formatearFecha_(fecha);
-    const hora = turnos.getRange(filaTurno, COL_T.HORA_INICIO).getValue();
+    const hora = formatearHora_(turnos.getRange(filaTurno, COL_T.HORA_INICIO).getValue());
 
     const reservas = ss.getSheetByName(CONFIG.SHEET_RESERVAS);
     const idReserva = 'R-' + new Date().getTime();
@@ -452,7 +472,11 @@ function obtenerTurnosDisponibles_(fechaTexto) {
       return fila[COL_T.ESTADO - 1] === 'Disponible' && formatearFecha_(fila[COL_T.FECHA - 1]) === fechaTexto;
     })
     .map(function (fila) {
-      return { id: fila[COL_T.ID - 1], horaInicio: fila[COL_T.HORA_INICIO - 1], horaFin: fila[COL_T.HORA_FIN - 1] };
+      return {
+        id: fila[COL_T.ID - 1],
+        horaInicio: formatearHora_(fila[COL_T.HORA_INICIO - 1]),
+        horaFin: formatearHora_(fila[COL_T.HORA_FIN - 1]),
+      };
     })
     .sort(function (a, b) {
       return a.horaInicio.localeCompare(b.horaInicio);

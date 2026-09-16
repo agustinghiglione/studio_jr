@@ -1,5 +1,22 @@
 # Cómo publicar / actualizar la agenda de Studio JR
 
+## Arreglo importante: turnos duplicados / "no quedan horarios libres"
+Si generaste los turnos antes de esta versión de `Code.gs`, es probable que la
+columna "Hora inicio"/"Hora fin" de la hoja "Turnos" haya quedado guardada como
+un valor de hora (en vez de texto plano "09:00"), porque esas columnas no tenían
+forzado el formato de texto. Eso causaba dos síntomas: turnos duplicados (el
+doble de los que corresponden) y que ningún horario apareciera al elegir un día
+("No quedan horarios libres ese día"), aunque los turnos sí estuvieran cargados.
+
+Para limpiarlo, con el `Code.gs` de este repo ya pegado en el editor:
+1. Corré **`configurarHojas`** de nuevo (ahora también fuerza texto plano en
+   las columnas de hora).
+2. Corré **`reiniciarTurnos`** — borra los turnos que no tienen una reserva
+   vinculada. Como todavía no hay reservas reales, esto limpia todos los
+   duplicados de una.
+3. Corré **`generarTurnos`** — recrea la agenda desde cero, ya con el formato
+   correcto, sin duplicados.
+
 ## Si tu proyecto de Apps Script es standalone (no aparece el menú "Turnos")
 Si al abrir el Sheet nunca ves el menú "Turnos" arriba, y "Extensiones > Apps Script"
 no te lleva a nada, es porque el script no está atado al Sheet: es un proyecto
@@ -17,9 +34,9 @@ cambian un poco:
    [proyecto] (no seguro) > Permitir**.
 4. Elegí **`generarTurnos`** en el mismo desplegable y ▶ Ejecutar de nuevo.
 5. Para que la sincronización automática funcione cuando alguien reserva a
-   mano en el Sheet, agregá un activador instalable: ícono de reloj
-   ("Activadores") en el menú izquierdo > **+ Agregar activador** > función
-   `onEdit` > evento "Al editar" > Guardar.
+   mano en el Sheet, elegí **`crearActivadorOnEdit`** en el desplegable de
+   funciones y ▶ Ejecutar (el panel de Activadores no ofrece "Al editar" como
+   opción para proyectos standalone, por eso esta función lo crea por código).
 6. **Implementar > Administrar implementaciones** → ícono de lápiz (editar) en
    la implementación existente → en "Versión" elegí **Nueva versión** →
    Implementar. Así la URL `/exec` que ya está en `website/index.html` queda
