@@ -34,6 +34,7 @@ const CONFIG = {
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
   DURACION_TURNO_MIN: 30,
   SEMANAS_A_GENERAR: 6, // cuántas semanas hacia adelante genera "Generar turnos"
+  MINUTOS_ANTICIPACION: 30, // para el día de hoy, oculta turnos que empiecen antes de (ahora + este margen)
 
   // Horario real del local. 0 = Domingo ... 6 = Sábado. null = cerrado.
   // Cada día tiene una lista de turnos [inicio, fin] — permite horario partido (mañana/tarde).
@@ -293,6 +294,16 @@ function formatearHora_(valor) {
   return String(valor);
 }
 
+/**
+ * "HH:mm" a partir de la cual, si la fecha es hoy, mostramos turnos: ahora
+ * mismo + el margen de anticipación configurado. Evita que alguien reserve
+ * (o vea como disponible) un horario que ya pasó o que está por empezar ya.
+ */
+function horaLimiteHoy_() {
+  const conMargen = new Date(new Date().getTime() + CONFIG.MINUTOS_ANTICIPACION * 60000);
+  return Utilities.formatDate(conMargen, CONFIG.ZONA_HORARIA, 'HH:mm');
+}
+
 function mostrarUrlWebApp() {
   const url = ScriptApp.getService().getUrl();
   const mensaje = url
@@ -387,6 +398,11 @@ function doPost(e) {
     const fechaTexto = formatearFecha_(fecha);
     const hora = formatearHora_(turnos.getRange(filaTurno, COL_T.HORA_INICIO).getValue());
 
+    const hoyTexto = formatearFecha_(new Date());
+    if (fechaTexto < hoyTexto || (fechaTexto === hoyTexto && hora < horaLimiteHoy_())) {
+      return responderJSON_({ ok: false, error: 'Ese horario ya pasó. Elegí otro turno.' });
+    }
+
     const reservas = ss.getSheetByName(CONFIG.SHEET_RESERVAS);
     const idReserva = 'R-' + new Date().getTime();
     reservas.appendRow([
@@ -445,6 +461,7 @@ function obtenerFechasDisponibles_() {
 
   const datos = turnos.getRange(2, 1, ultimaFila - 1, 7).getValues();
   const hoyTexto = formatearFecha_(new Date());
+  const horaLimiteHoy = horaLimiteHoy_();
   const conteo = {};
 
   datos.forEach(function (fila) {
@@ -452,6 +469,7 @@ function obtenerFechasDisponibles_() {
     if (estado !== 'Disponible') return;
     const fecha = formatearFecha_(fila[COL_T.FECHA - 1]);
     if (fecha < hoyTexto) return;
+    if (fecha === hoyTexto && formatearHora_(fila[COL_T.HORA_INICIO - 1]) < horaLimiteHoy) return;
     conteo[fecha] = (conteo[fecha] || 0) + 1;
   });
 
@@ -467,9 +485,15 @@ function obtenerTurnosDisponibles_(fechaTexto) {
   if (ultimaFila < 2) return [];
 
   const datos = turnos.getRange(2, 1, ultimaFila - 1, 7).getValues();
+  const hoyTexto = formatearFecha_(new Date());
+  const esHoy = fechaTexto === hoyTexto;
+  const horaLimiteHoy = esHoy ? horaLimiteHoy_() : null;
   return datos
     .filter(function (fila) {
-      return fila[COL_T.ESTADO - 1] === 'Disponible' && formatearFecha_(fila[COL_T.FECHA - 1]) === fechaTexto;
+      if (fila[COL_T.ESTADO - 1] !== 'Disponible') return false;
+      if (formatearFecha_(fila[COL_T.FECHA - 1]) !== fechaTexto) return false;
+      if (esHoy && formatearHora_(fila[COL_T.HORA_INICIO - 1]) < horaLimiteHoy) return false;
+      return true;
     })
     .map(function (fila) {
       return {
