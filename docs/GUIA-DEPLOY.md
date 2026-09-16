@@ -1,5 +1,30 @@
 # Cómo publicar / actualizar la agenda de Studio JR
 
+## Si tu proyecto de Apps Script es standalone (no aparece el menú "Turnos")
+Si al abrir el Sheet nunca ves el menú "Turnos" arriba, y "Extensiones > Apps Script"
+no te lleva a nada, es porque el script no está atado al Sheet: es un proyecto
+independiente en script.google.com. `Code.gs` ya funciona igual en los dos casos
+(usa `CONFIG.SPREADSHEET_ID` como respaldo), pero como no hay menú, los pasos
+cambian un poco:
+
+1. Abrí tu proyecto en script.google.com (el link que tengas guardado, con
+   `/d/.../edit`).
+2. Pegá el `apps-script/Code.gs` de este repo (reemplazando todo) y guardá.
+3. Arriba del editor, al lado de "Depurar", hay un desplegable de funciones.
+   Elegí **`configurarHojas`** y clickeá ▶ **Ejecutar**. La primera vez Google
+   va a pedir autorización (tu propio script sobre tu propio Sheet): aceptá,
+   y si dice que la app "no está verificada", **Configuración avanzada > Ir a
+   [proyecto] (no seguro) > Permitir**.
+4. Elegí **`generarTurnos`** en el mismo desplegable y ▶ Ejecutar de nuevo.
+5. Para que la sincronización automática funcione cuando alguien reserva a
+   mano en el Sheet, agregá un activador instalable: ícono de reloj
+   ("Activadores") en el menú izquierdo > **+ Agregar activador** > función
+   `onEdit` > evento "Al editar" > Guardar.
+6. **Implementar > Administrar implementaciones** → ícono de lápiz (editar) en
+   la implementación existente → en "Versión" elegí **Nueva versión** →
+   Implementar. Así la URL `/exec` que ya está en `website/index.html` queda
+   actualizada con este código, sin necesidad de generar una URL nueva.
+
 ## Si es la primera vez (todavía no corriste nada en el Sheet)
 1. Abrí el Google Sheet **FormularioWeb**.
 2. Menú **Extensiones > Apps Script**.
