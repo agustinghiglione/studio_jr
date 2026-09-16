@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Studio JR</title>
 <style>
   :root{
@@ -132,7 +137,10 @@
   .step-label{ font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin-bottom:10px; }
 
   .dates-month{ font-size:.78rem; font-weight:600; color:var(--ink-soft); margin-bottom:8px; }
-  .dates-scroll{ position:relative; margin-bottom:18px; }
+  .dates-scroll{
+    position:relative; margin-bottom:18px;
+    max-width:min(464px, 100%);
+  }
   .dates-scroll::after{
     content:''; position:absolute; top:0; right:0; bottom:10px; width:32px;
     background:linear-gradient(to right, transparent, var(--surface));
@@ -140,7 +148,7 @@
   }
   .dates-row{
     display:flex; gap:8px; overflow-x:auto; padding-bottom:10px;
-    max-width:min(464px, 100%);
+    width:100%;
     scroll-snap-type:x proximity;
     scrollbar-width:thin; scrollbar-color: var(--ink) var(--surface);
   }
@@ -246,9 +254,36 @@
     .date-chip, .time-chip, .submit-btn, .theme-btn{ transition: background-color .15s ease, color .15s ease, border-color .15s ease, transform .1s ease; }
     .submit-btn:active{ transform: scale(.98); }
   }
+
+  /* escritorio: foto y ubicación (con mapa) lado a lado arriba, el resto abajo en una columna */
+  @media (min-width: 860px){
+    .wrap{
+      max-width: 920px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 32px;
+      grid-template-areas:
+        "header header"
+        "photo  ubicacion"
+        "hero   hero"
+        "servicio servicio"
+        "reserva  reserva"
+        "footer   footer";
+      align-items:start;
+    }
+    header{ grid-area: header; }
+    .hero-photo{ grid-area: photo; margin-bottom:0; }
+    .hero{ grid-area: hero; margin-top:26px; }
+    section[aria-labelledby="servicio-title"]{ grid-area: servicio; }
+    section[aria-labelledby="reservar-title"]{ grid-area: reserva; }
+    section[aria-labelledby="ubicacion-title"]{ grid-area: ubicacion; margin-top:0; }
+    footer{ grid-area: footer; }
+  }
 </style>
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head>
+<body>
 
 <div class="wrap">
 
@@ -263,10 +298,11 @@
     <button class="theme-btn" id="themeBtn" type="button" aria-label="Cambiar a modo oscuro" aria-pressed="false">🌙</button>
   </header>
 
+  <div class="hero-photo">
+    <img src="img/foto-trabajo.jpg" alt="Corte realizado en Studio JR" loading="lazy">
+  </div>
+
   <div class="hero">
-    <div class="hero-photo">
-      <img src="img/foto-trabajo.jpg" alt="Corte realizado en Studio JR" loading="lazy">
-    </div>
     <h1>Corte con oficio,<br>a tu hora.</h1>
     <div class="rating-row">
       <span class="stars" aria-hidden="true">★★★★★</span>
@@ -651,8 +687,18 @@
       headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS en Apps Script
       body: JSON.stringify(payload)
     })
-      .then(function(r){ return r.json(); })
-      .then(function(res){
+      .then(function(r){ return r.text(); })
+      .then(function(text){
+        var res;
+        try { res = JSON.parse(text); }
+        catch(parseErr){
+          // Google a veces devuelve una página HTML en vez del JSON aunque la reserva
+          // sí se haya guardado del lado del script. No podemos saber con certeza si
+          // pasó o no, así que avisamos sin mostrar el error técnico crudo.
+          var e = new Error('RESPUESTA_INESPERADA');
+          e.ambigua = true;
+          throw e;
+        }
         if (!res.ok) throw new Error(res.error || 'No se pudo confirmar el turno.');
         bookingForm.hidden = true;
         confirmBox.hidden = false;
@@ -661,7 +707,9 @@
       })
       .catch(function(err){
         formMsg.className = 'form-msg error';
-        formMsg.textContent = err.message || 'Hubo un problema al confirmar. Probá de nuevo.';
+        formMsg.textContent = err.ambigua
+          ? 'No pudimos confirmar la respuesta, pero es probable que tu turno ya haya quedado registrado — revisá tu email. Si no te llegó nada en unos minutos, escribinos por Instagram.'
+          : (err.message || 'Hubo un problema al confirmar. Probá de nuevo.');
       })
       .finally(function(){
         submitBtn.disabled = false;
@@ -692,3 +740,5 @@
   }
 })();
 </script>
+</body>
+</html>
