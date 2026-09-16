@@ -82,6 +82,19 @@ function avisar_(mensaje) {
   }
 }
 
+/**
+ * Muestra el "toast" (aviso flotante abajo a la derecha) si hay una hoja con
+ * UI activa; si no (standalone, o corrido con ▶ Ejecutar desde el editor),
+ * lo manda al log en vez de romper — igual que avisar_() pero para toast().
+ */
+function notificar_(mensaje, titulo, segundos) {
+  try {
+    abrirSheet_().toast(mensaje, titulo, segundos);
+  } catch (err) {
+    Logger.log((titulo ? titulo + ': ' : '') + mensaje);
+  }
+}
+
 // Columnas de la hoja Turnos
 const COL_T = { ID: 1, FECHA: 2, DIA: 3, HORA_INICIO: 4, HORA_FIN: 5, ESTADO: 6, ID_RESERVA: 7 };
 // Columnas de la hoja Reservas
@@ -139,7 +152,7 @@ function configurarHojas() {
   aplicarValidacion_(reservas.getRange(2, COL_R.ORIGEN, 2000, 1), ['Web', 'Manual']);
   aplicarValidacion_(reservas.getRange(2, COL_R.ESTADO, 2000, 1), ['Confirmada', 'Cancelada']);
 
-  abrirSheet_().toast('Hojas "Turnos" y "Reservas" listas. Ahora corré "Generar turnos".', 'Configuración completa', 6);
+  notificar_('Hojas "Turnos" y "Reservas" listas. Ahora corré "Generar turnos".', 'Configuración completa', 6);
 }
 
 function aplicarValidacion_(range, opciones) {
@@ -197,7 +210,7 @@ function generarTurnos() {
     turnos.getRange(turnos.getLastRow() + 1, 1, filasNuevas.length, 7).setValues(filasNuevas);
   }
 
-  abrirSheet_().toast(filasNuevas.length + ' turnos nuevos generados.', 'Listo', 5);
+  notificar_(filasNuevas.length + ' turnos nuevos generados.', 'Listo', 5);
 }
 
 /**
@@ -223,7 +236,7 @@ function reiniciarTurnos() {
     turnos.getRange(2, 1, filasAConservar.length, 7).setValues(filasAConservar);
   }
 
-  abrirSheet_().toast('Turnos sin reserva eliminados. Corré "Generar turnos" para recrearlos con el horario actual.', 'Listo', 6);
+  notificar_('Turnos sin reserva eliminados. Corré "Generar turnos" para recrearlos con el horario actual.', 'Listo', 6);
 }
 
 function generarSlots_(horaInicio, horaFin, duracionMin) {
