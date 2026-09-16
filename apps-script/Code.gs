@@ -281,6 +281,28 @@ function mostrarUrlWebApp() {
   avisar_(mensaje);
 }
 
+/**
+ * Crea el activador instalable de "Al editar" por código. Hace falta correr esto
+ * UNA VEZ (elegí "crearActivadorOnEdit" en el desplegable de funciones y ▶ Ejecutar)
+ * cuando el script es standalone: en ese caso el panel de Activadores no ofrece
+ * "Desde la hoja de cálculo > Al editar" como opción (solo aparece "Basado en tiempo"
+ * o "Desde el calendario"), así que el único modo de instalarlo es con ScriptApp.
+ * Es seguro correrlo más de una vez: borra cualquier activador onEdit anterior
+ * antes de crear el nuevo, para no duplicar.
+ */
+function crearActivadorOnEdit() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'onEdit') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('onEdit')
+    .forSpreadsheet(CONFIG.SPREADSHEET_ID)
+    .onEdit()
+    .create();
+  avisar_('Activador "Al editar" creado correctamente sobre la hoja.');
+}
+
 // ============================================================
 // WEB APP — lo que consume el sitio
 // ============================================================
